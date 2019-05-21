@@ -424,7 +424,7 @@ MonoBehaviour:
   point1: {fileID: 6855298440634675374}
   point2: {fileID: 6855298440968490498}
   point3: {fileID: 6855298439415228821}
-  numPoints: 50
+  numPoints: 10
 --- !u!120 &6855298440741019037
 LineRenderer:
   m_ObjectHideFlags: 0

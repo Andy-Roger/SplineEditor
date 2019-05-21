@@ -1,13 +1,32 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System;
+
 
 public class splineManager : MonoBehaviour
 {
     //Instantiate segment into spline parent
     [SerializeField] private Transform splineParent;
     [SerializeField] private GameObject segment;
-    private List<splineSegment> segments = new List<splineSegment>();
+    [SerializeField] private List<splineSegment> segments = new List<splineSegment>();
+
+    private bool _isTransforming = false;
+
+    public delegate void onLinesNeedUpdate();
+    public static event onLinesNeedUpdate onLinesNeedUpdateEvent;
+
+    void Awake() {
+        RuntimeGizmos.TransformGizmo.onGizmoInteractionEvent += updateIsTransforming;
+    }
+
+    void OnApplicationQuit() {
+        RuntimeGizmos.TransformGizmo.onGizmoInteractionEvent -= updateIsTransforming;
+    }
+
+    void updateIsTransforming(bool value) {
+        _isTransforming = value;
+    }
 
     void Update()
     {
@@ -20,7 +39,9 @@ public class splineManager : MonoBehaviour
         }
 
         //Update next point when node edited
-        updateSegmentPoints();
+        if (_isTransforming) {
+            updateSegmentPoints();
+        }
     }
 
     public void addSegment(Transform splineParent) {
@@ -32,8 +53,7 @@ public class splineManager : MonoBehaviour
         //    //Insert the new segment at index
         //    segments.Insert(selectedSegmentIndex, segment.GetComponent<splineSegment>());
         //} else {
-            segments.Add(segment.GetComponent<splineSegment>());
-        
+        segments.Add(segment.GetComponent<splineSegment>());
 
         //if first segment place at spline initial position
         if (segment.transform.GetSiblingIndex() == 0)
@@ -48,22 +68,34 @@ public class splineManager : MonoBehaviour
         }
     }
 
-    //Handle removing a segment
     public void removeSegment() {
-        segments.Remove(FindObjectOfType<RuntimeGizmos.TransformGizmo>().mainTargetRoot.parent.GetComponent<splineSegment>());
-        Destroy(FindObjectOfType<RuntimeGizmos.TransformGizmo>().mainTargetRoot.parent.gameObject);
-        //Add back selectability to both ends if only one segment
-        if (segments.Count == 1) {
-            segments[0].point3.GetComponent<BoxCollider>().enabled = true;
+        //Delete the seleced waypoint, do nothing if "getSplineWaypoint" returns null
+        if (getSplineWaypoint() != null) {
+            segments.RemoveAt(getSplineWaypoint().transform.parent.GetSiblingIndex());
+            Destroy(getSplineWaypoint().transform.parent.GetComponent<splineSegment>());
+            Destroy(getSplineWaypoint().transform.parent.gameObject);
+            updateSegmentPoints();
+            onLinesNeedUpdateEvent();
+            //always make last node selectable
+            segments[segments.Count - 1].point3.GetComponent<BoxCollider>().enabled = true;          
         }
+        //Feature TODO : pressing delete on control point will reset it
     }
 
-    //On waypoint1 move (TODO), if there is a next segment, move the next segment's waypoint0 with this waypoint1
     void updateSegmentPoints() {
         if(segments.Count > 0) {            
             for (int i = 0; i < segments.Count - 1; i++) {
                 segments[i].point3.transform.position = segments[i + 1].point0.transform.position;
             }
         }
+    }
+
+    //Gets the currently selected spline waypoint
+    GameObject getSplineWaypoint() {
+        Transform currentSelection = FindObjectOfType<RuntimeGizmos.TransformGizmo>().mainTargetRoot;
+        if (currentSelection.parent.GetComponent<splineSegment>())
+            return currentSelection.gameObject;
+        else
+            return null;
     }
 }

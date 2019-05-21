@@ -8,27 +8,44 @@ public class splineSegment : MonoBehaviour {
     [SerializeField] private LineRenderer controlPointLine_1;
 
     public Transform point0, point1, point2, point3;
-    public int numPoints = 50;
+    public int numPoints = 10;
 
-    private Vector3[] positions = new Vector3[50];
+    private Vector3[] positions = new Vector3[10];
 
-    void Start() {
+    private bool _isTransforming = false;
+
+    void Awake() {
+        RuntimeGizmos.TransformGizmo.onGizmoInteractionEvent += updateIsTransforming;
+        splineManager.onLinesNeedUpdateEvent += drawCubicCurve;
+
         splineLine.positionCount = numPoints;
         drawCubicCurve();
     }
 
+    void OnApplicationQuit() {
+        RuntimeGizmos.TransformGizmo.onGizmoInteractionEvent -= updateIsTransforming;
+        splineManager.onLinesNeedUpdateEvent -= drawCubicCurve;
+    }
+
+    void updateIsTransforming(bool value) {
+        _isTransforming = value;
+    }
+
     void Update() {
-        //Todo: only do drawCubicCurve if currently being edited
-        drawCubicCurve();
-        updateControlPointLine();
+        if (_isTransforming) {
+            drawCubicCurve();
+        }
     }
 
     void drawCubicCurve() {
-        for (int i = 1; i < numPoints + 1; i++) {
-            float t = i / (float)numPoints;
-            positions[i - 1] = calculateCubicBezierPoint(t, point0.position, point1.position, point2.position, point3.position);
+        if (point0 && point1 && point2 && point3) {
+            for (int i = 1; i < numPoints + 1; i++) {
+                float t = i / (float)numPoints;
+                positions[i - 1] = calculateCubicBezierPoint(t, point0.position, point1.position, point2.position, point3.position);
+            }
+            splineLine.SetPositions(positions);
+            updateControlPointLine();
         }
-        splineLine.SetPositions(positions);
     }
 
     private void updateControlPointLine() {
